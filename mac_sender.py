@@ -125,7 +125,7 @@ class MacSender(ctk.CTk):
     def _ssh(self, cmd_str):
         user = self.user_entry.get().strip()
         pw = self.pw_entry.get().strip()
-        cmd = ["sshpass", "-p", pw, "ssh", "-o", "StrictHostKeyChecking=no",
+        cmd = ["/opt/homebrew/bin/sshpass", "-p", pw, "ssh", "-o", "StrictHostKeyChecking=no",
                "-o", "ConnectTimeout=5", f"{user}@{self.selected_ip}", cmd_str]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=12)
         return r.stdout.strip()
@@ -178,7 +178,7 @@ class MacSender(ctk.CTk):
         def resolve(ip):
             pw = self.pw_entry.get().strip()
             user = self.user_entry.get().strip()
-            cmd = ["sshpass", "-p", pw, "ssh", "-o", "StrictHostKeyChecking=no",
+            cmd = ["/opt/homebrew/bin/sshpass", "-p", pw, "ssh", "-o", "StrictHostKeyChecking=no",
                    "-o", "ConnectTimeout=3", f"{user}@{ip}",
                    "scutil --get ComputerName 2>/dev/null || hostname"]
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
@@ -226,12 +226,19 @@ class MacSender(ctk.CTk):
     def _do_fetch_level(self, level):
         try:
             if level == 0:
-                out = self._ssh("ls /Volumes && echo ---HOME--- && ls /Users")
-                items, in_home = [], False
-                for line in out.splitlines():
-                    if line == "---HOME---": in_home = True; continue
-                    n = line.strip()
-                    if n: items.append(f"/Users/{n}" if in_home else f"/Volumes/{n}")
+                out = self._ssh("diskutil list | grep external | awk '{print $NF}'")
+                vols = self._ssh("ls /Volumes")
+                # Lấy disk id của external
+                ext_disks = [l.strip() for l in out.splitlines() if l.strip()]
+                # Map disk -> volume name
+                items = []
+                for vol in vols.splitlines():
+                    n = vol.strip()
+                    if not n: continue
+                    # Check volume có phải external không
+                    chk = self._ssh(f"diskutil info '/Volumes/{n}' 2>/dev/null | grep -i 'removable\|external'")
+                    if chk.strip():
+                        items.append(f"/Volumes/{n}")
             else:
                 parts = []
                 for i in range(level):
@@ -255,7 +262,7 @@ class MacSender(ctk.CTk):
             self._fetch_level(level + 1, val)
 
     def _start(self):
-        src = self.src_entry.get().strip().rstrip("/") + "/"
+        src = self.src_entry.get().strip().rstrip("/")
         user = self.user_entry.get().strip()
         pw = self.pw_entry.get().strip()
         dst = self._current_dst()
@@ -264,7 +271,7 @@ class MacSender(ctk.CTk):
         dest = f"{user}@{self.selected_ip}:{dst}"
         import shlex
         ip = self.selected_ip
-        cmd = ["sshpass", "-p", pw,
+        cmd = ["/opt/homebrew/bin/sshpass", "-p", pw,
                "/opt/homebrew/bin/rsync", "-ah", "--info=progress2", "--inplace", "--stats",
                "-e", "ssh -o StrictHostKeyChecking=no",
                src, f"{user}@{ip}:{dst}"]
