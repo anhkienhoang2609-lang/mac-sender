@@ -106,6 +106,66 @@ double-click mở app sau này.
     khi** set `NONINTERACTIVE=1`, và giữ ticket sống bằng vòng lặp
     `sudo -n true` chạy ngầm suốt quá trình cài.
 
+## Đóng gói thành .app/.dmg (không cần Homebrew trên máy đích)
+
+Ngoài cách cài qua `bootstrap.sh` (cần Homebrew), còn có bản đóng gói sẵn
+hoàn toàn standalone, không cần Homebrew/Python gì trên máy đích — chỉ kéo
+`.app` vào `Applications`.
+
+**Tải về:** xem GitHub Releases của repo, ví dụ tag `v1.0-dmg` ->
+`MacSender.dmg`. **Chỉ chạy trên Apple Silicon (arm64)** — đã xác nhận
+editor1, editor3, editor5 đều arm64.
+
+### Cách build lại khi cần (trên máy editor4 - máy dev)
+
+1. Bundle `sshpass` + `rsync` (kèm toàn bộ dylib phụ thuộc) thành bản
+   standalone, không phụ thuộc Homebrew nữa:
+   ```bash
+   brew install dylibbundler   # 1 lần
+   mkdir -p vendor/bin vendor/libs
+   cp /opt/homebrew/bin/sshpass /opt/homebrew/bin/rsync vendor/bin/
+   chmod +w vendor/bin/*
+   dylibbundler -od -b -x vendor/bin/rsync -d vendor/libs/ \
+       -p "@executable_path/../libs/"
+   ```
+   (`sshpass` không cần dylibbundler vì chỉ phụ thuộc `libSystem` — luôn có
+   sẵn trên mọi macOS.)
+
+2. Build `.app` bằng PyInstaller, nhúng `vendor/` vào:
+   ```bash
+   python3.12 -m venv build_env && source build_env/bin/activate
+   pip install pyinstaller customtkinter
+   pyinstaller --noconfirm --windowed --name "MacSender" \
+       --add-data "vendor:vendor" mac_sender.py
+   ```
+   PyInstaller đặt `--add-data` vào `Contents/Frameworks/`, KHÔNG phải
+   `Contents/MacOS/` — code `_find_bin()` trong `mac_sender.py` dùng
+   `sys._MEIPASS` (PyInstaller tự set đúng giá trị này lúc runtime) để tìm
+   `vendor/bin/<name>`, không hardcode theo `dirname(sys.executable)` vì sẽ
+   trỏ sai vị trí.
+
+3. Đóng gói `.dmg`:
+   ```bash
+   mkdir -p dist/dmg_staging
+   cp -R dist/MacSender.app dist/dmg_staging/
+   ln -s /Applications dist/dmg_staging/Applications
+   hdiutil create -volname "Mac Sender" -srcfolder dist/dmg_staging \
+       -ov -format UDZO dist/MacSender.dmg
+   ```
+
+4. Đăng lên GitHub Releases (KHÔNG commit file `.dmg`/`.app` thẳng vào git —
+   file binary lớn (~17MB) sẽ làm phình repo):
+   ```bash
+   gh release create v1.0-dmg dist/MacSender.dmg --title "..." --notes "..."
+   ```
+
+### Lưu ý khi build lại
+- App chưa ký Apple Developer ID (chữ ký ad-hoc) → máy đích lần đầu mở phải
+  chuột phải → Open để qua Gatekeeper.
+- Nếu sau này thêm máy đích là Intel Mac, phải build thêm bản riêng (bundle
+  `sshpass`/`rsync` bản Intel từ `/usr/local/bin`, build PyInstaller trên máy
+  Intel hoặc cross-build) — file đã build hiện tại CHỈ chạy được trên arm64.
+
 ## Lưu ý bảo mật
 
 - `DEFAULT_CONFIG["password"]` trong code hiện là `"1211"` — **đây là password
