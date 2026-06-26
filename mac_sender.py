@@ -400,13 +400,19 @@ class MacSender(ctk.CTk):
                     n = vol.strip()
                     if not n:
                         continue
-                    chk = self._ssh(
-                        f"diskutil info '/Volumes/{n}' 2>/dev/null | grep -i 'removable\\|external'")
-                    if chk.strip():
+                    # "Removable Media:" luôn xuất hiện trên mọi ổ (label cố
+                    # định, giá trị thường là "Fixed" cả với ổ ngoài dạng
+                    # HDD/SSD case rời) nên không dùng để lọc được. Lọc theo
+                    # "Device Location: External" mới đúng ổ rời thật, nhưng
+                    # file .dmg đang mount cũng báo External -> loại thêm
+                    # bằng cách check Protocol khác "Disk Image".
+                    info = self._ssh(
+                        f"diskutil info '/Volumes/{n}' 2>/dev/null | "
+                        f"grep -iE 'Device Location|Protocol'")
+                    is_external = "external" in info.lower()
+                    is_disk_image = "disk image" in info.lower()
+                    if is_external and not is_disk_image:
                         items.append(f"/Volumes/{n}")
-                if not items:
-                    items = [f"/Volumes/{v.strip()}"
-                             for v in vols_raw.splitlines() if v.strip()]
             else:
                 parts = []
                 for i in range(level):
