@@ -7,6 +7,11 @@ cd "$DIR"
 echo "==> Kiểm tra Homebrew..."
 if ! command -v brew >/dev/null 2>&1; then
     echo "==> Chưa có Homebrew, đang cài..."
+    echo "==> Nhập mật khẩu đăng nhập Mac của bạn khi được hỏi (để cấp quyền cài đặt):"
+    sudo -v
+    # Giữ quyền sudo còn hiệu lực trong lúc cài (cache mặc định ~5 phút,
+    # có thể không đủ nếu mạng chậm khi tải Homebrew).
+    ( while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit; done 2>/dev/null & )
     NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     if [ -x /opt/homebrew/bin/brew ]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
