@@ -5,9 +5,25 @@ import tkinter.filedialog as fd
 import re
 import json
 import os
+import shutil
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
+
+def _find_bin(name):
+    # Prefer Homebrew's binaries over the very old rsync/ssh that ship
+    # with macOS (e.g. system rsync is openrsync, too old for --info=).
+    for candidate in (f"/opt/homebrew/bin/{name}", f"/usr/local/bin/{name}"):
+        if os.path.exists(candidate):
+            return candidate
+    found = shutil.which(name)
+    if found:
+        return found
+    raise FileNotFoundError(
+        f"Không tìm thấy '{name}'. Cài bằng: brew install {name}")
+
+SSHPASS_BIN = _find_bin("sshpass")
+RSYNC_BIN = _find_bin("rsync")
 
 CONFIG_FILE = os.path.expanduser("~/.mac_sender_config.json")
 
@@ -278,7 +294,7 @@ class MacSender(ctk.CTk):
                 ip = socket.gethostbyname(fqdn)
             except:
                 ip = fqdn
-            cmd = ["/opt/homebrew/bin/sshpass", "-p", pw, "ssh", "-4",
+            cmd = [SSHPASS_BIN, "-p", pw, "ssh", "-4",
                    "-o", "StrictHostKeyChecking=no",
                    "-o", "ConnectTimeout=4",
                    f"{un}@{fqdn}", "echo ok"]
@@ -334,7 +350,7 @@ class MacSender(ctk.CTk):
     def _ssh(self, cmd_str):
         m = self.selected_machine
         pw = self.config.get("password", "")
-        cmd = ["/opt/homebrew/bin/sshpass", "-p", pw,
+        cmd = [SSHPASS_BIN, "-p", pw,
                "ssh", "-4", "-o", "StrictHostKeyChecking=no",
                "-o", "ConnectTimeout=5",
                f"{m['username']}@{m['fqdn']}", cmd_str]
@@ -451,8 +467,8 @@ class MacSender(ctk.CTk):
             self._log("⚠️  Chọn folder đích trước."); return
 
         dest_str = f"{m['username']}@{m['fqdn']}:{dst}"
-        cmd = ["/opt/homebrew/bin/sshpass", "-p", pw,
-               "/opt/homebrew/bin/rsync", "-ahv", "--info=progress2",
+        cmd = [SSHPASS_BIN, "-p", pw,
+               RSYNC_BIN, "-ahv", "--info=progress2",
                "--inplace", "--stats",
                "-e", "ssh -4 -o StrictHostKeyChecking=no",
                src, f"{m['username']}@{m['fqdn']}:{dst}"]
