@@ -3,6 +3,23 @@
 File này ghi lại toàn bộ lịch sử debug, quyết định kỹ thuật, và các thông tin cần
 biết để làm việc tiếp với project này — tránh phải dò lại từ đầu ở mỗi session mới.
 
+## Quy ước version (BẮT BUỘC tuân theo ở mọi session)
+
+- Version hiện tại nằm ở file `VERSION` (root repo) và hằng số `APP_VERSION`
+  trong `mac_sender.py` (hiện ra ở title bar app: "Mac Sender vX.Y.Z") — 2 nơi
+  này phải luôn khớp nhau.
+- **Sau mỗi lần sửa code xong và xác nhận hoạt động đúng**: tăng version
+  (patch +1 cho bugfix nhỏ, minor +1 cho thêm tính năng), cập nhật cả
+  `VERSION` và `APP_VERSION`, rồi:
+  1. `git add` + `git commit` + `git push origin main` (code nguồn).
+  2. Cập nhật mục lịch sử bug/thay đổi trong `DEVLOG.md` (file này) rồi push
+     cùng lúc.
+  3. Nếu có thay đổi ảnh hưởng tới bản đóng gói `.dmg` (xem mục "Đóng gói
+     thành .app/.dmg" dưới đây) — rebuild và đăng release mới
+     `vX.Y.Z-dmg` qua `gh release create`, không sửa đè lên release cũ.
+- Không cần hỏi xác nhận trước khi push — đây là quy ước đã được user yêu cầu
+  áp dụng mặc định cho project này.
+
 ## Tổng quan project
 
 `mac_sender.py` — app GUI (customtkinter) để chuyển file giữa các máy Mac trong

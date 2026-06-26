@@ -8,6 +8,8 @@ import os
 import shutil
 import sys
 
+APP_VERSION = "1.2.0"
+
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -65,7 +67,7 @@ def save_config(cfg):
 class MacSender(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Mac Sender")
+        self.title(f"Mac Sender v{APP_VERSION}")
         self.geometry("780x760")
         self.resizable(False, False)
         self.config = load_config()
