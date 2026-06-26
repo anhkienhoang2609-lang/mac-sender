@@ -6,13 +6,23 @@ import re
 import json
 import os
 import shutil
+import sys
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 def _find_bin(name):
-    # Prefer Homebrew's binaries over the very old rsync/ssh that ship
-    # with macOS (e.g. system rsync is openrsync, too old for --info=).
+    # When packaged as a standalone .app (PyInstaller), prefer the
+    # sshpass/rsync copies bundled inside the app — fully self-contained,
+    # no Homebrew needed on the target Mac.
+    if getattr(sys, "frozen", False):
+        base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+        bundled = os.path.join(base, "vendor", "bin", name)
+        if os.path.exists(bundled):
+            return bundled
+    # Otherwise (running mac_sender.py directly), prefer Homebrew's
+    # binaries over the very old rsync/ssh that ship with macOS (e.g.
+    # system rsync is openrsync, too old for --info=).
     for candidate in (f"/opt/homebrew/bin/{name}", f"/usr/local/bin/{name}"):
         if os.path.exists(candidate):
             return candidate
